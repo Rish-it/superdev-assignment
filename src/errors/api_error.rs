@@ -6,23 +6,6 @@ use axum::{
 use serde_json::json;
 use thiserror::Error;
 
-#[derive(Debug, Clone, Copy)]
-pub enum ApiStatusCode {
-    Ok = 200,
-    BadRequest = 400,
-    InternalServerError = 500,
-}
-
-impl From<ApiStatusCode> for StatusCode {
-    fn from(code: ApiStatusCode) -> Self {
-        match code {
-            ApiStatusCode::Ok => StatusCode::OK,
-            ApiStatusCode::BadRequest => StatusCode::BAD_REQUEST,
-            ApiStatusCode::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-}
-
 #[derive(Error, Debug)]
 pub enum ApiError {
     #[error("Invalid input: {0}")]
@@ -38,21 +21,11 @@ pub enum ApiError {
     EncodingError(String),
 }
 
-impl ApiError {
-    fn status_code(&self) -> ApiStatusCode {
-        match self {
-            ApiError::InvalidInput(_) => ApiStatusCode::BadRequest,
-            ApiError::TokenCreation(_) => ApiStatusCode::BadRequest,
 
-            ApiError::VerificationFailed(_) => ApiStatusCode::BadRequest,
-            ApiError::EncodingError(_) => ApiStatusCode::BadRequest,
-        }
-    }
-}
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let status = StatusCode::from(self.status_code());
+        let status = StatusCode::BAD_REQUEST;
         let error_message = self.to_string();
 
         let body = Json(json!({

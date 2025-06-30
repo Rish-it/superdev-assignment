@@ -1,5 +1,5 @@
 use axum::{response::Result, Json};
-use solana_sdk::signature::{Keypair, Signature, Signer};
+use solana_sdk::signature::{Keypair, Signature, Signer, SeedDerivable};
 
 use crate::{
     errors::ApiError,
@@ -13,9 +13,20 @@ use crate::{
 pub async fn sign_message(
     Json(req): Json<SignMessageRequest>,
 ) -> Result<Json<ApiResponse<SignMessageResponse>>, ApiError> {
-    let _secret_key_bytes = decode_base58(&req.private_key)?;
-    let temp_keypair = Keypair::new();
-    let keypair = temp_keypair;
+    let secret_key_bytes = decode_base58(&req.private_key)?;
+    
+    let seed_bytes = if secret_key_bytes.len() == 64 {
+        &secret_key_bytes[..32]
+    } else if secret_key_bytes.len() == 32 {
+        &secret_key_bytes
+    } else {
+        return Err(ApiError::InvalidInput(
+            format!("Private key must be 32 or 64 bytes, got {}", secret_key_bytes.len())
+        ));
+    };
+
+    let keypair = Keypair::from_seed(seed_bytes)
+        .map_err(|e| ApiError::InvalidInput(format!("Invalid private key: {}", e)))?;
 
     let message_bytes = req.message.as_bytes();
     let signature = keypair.sign_message(message_bytes);

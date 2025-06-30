@@ -5,7 +5,7 @@ mod utils;
 
 use axum::{
     http::Method,
-    routing::{get, post},
+    routing::post,
     Router,
 };
 use std::net::SocketAddr;
@@ -24,8 +24,6 @@ async fn main() {
         .allow_origin(Any);
 
     let app = Router::new()
-        .route("/", get(health_check))
-        .route("/health", get(health_check))
         .route("/keypair", post(generate_keypair))
         .route("/token/create", post(create_token))
         .route("/sign", post(sign_message))
@@ -33,9 +31,8 @@ async fn main() {
         .layer(ServiceBuilder::new().layer(cors).into_inner());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    println!("Superdev Server running on http://{}", addr);
-    println!("Endpoints:");
-    println!("  GET  /health      - Health check");
+    println!("Solana HTTP Server running on http://{}", addr);
+    println!("Available endpoints:");
     println!("  POST /keypair     - Generate new keypair");
     println!("  POST /token/create - Create SPL token mint instruction");
     println!("  POST /sign        - Sign a message");
@@ -43,15 +40,4 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn health_check() -> axum::Json<serde_json::Value> {
-    axum::Json(serde_json::json!({
-        "success": true,
-        "data": {
-            "status": "healthy",
-            "service": "Superdev Server",
-            "version": "0.1.0"
-        }
-    }))
 }
