@@ -32,11 +32,6 @@ async fn main() {
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     println!("Solana HTTP Server running on http://{}", addr);
-    println!("Available endpoints:");
-    println!("  POST /keypair     - Generate new keypair");
-    println!("  POST /token/create - Create SPL token mint instruction");
-    println!("  POST /sign        - Sign a message");
-    println!("  POST /verify      - Verify a signature");
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();

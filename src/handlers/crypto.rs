@@ -13,51 +13,48 @@ use crate::{
 pub async fn sign_message(
     Json(req): Json<SignMessageRequest>,
 ) -> Result<Json<ApiResponse<SignMessageResponse>>, ApiError> {
-    let secret_key_bytes = decode_base58(&req.private_key)?;
+    if req.message.is_empty() || req.private_key.is_empty() {
+        return Err(ApiError::InvalidInput);
+    }
+
+    let key_bytes = decode_base58(&req.private_key)?;
     
-    let seed_bytes = if secret_key_bytes.len() == 64 {
-        &secret_key_bytes[..32]
-    } else if secret_key_bytes.len() == 32 {
-        &secret_key_bytes
-    } else {
-        return Err(ApiError::InvalidInput(
-            format!("Private key must be 32 or 64 bytes, got {}", secret_key_bytes.len())
-        ));
+    let seed = match key_bytes.len() {
+        32 => &key_bytes[..],
+        64 => &key_bytes[..32],
+        _ => return Err(ApiError::InvalidKey),
     };
 
-    let keypair = Keypair::from_seed(seed_bytes)
-        .map_err(|e| ApiError::InvalidInput(format!("Invalid private key: {}", e)))?;
+    let keypair = Keypair::from_seed(seed).map_err(|_| ApiError::InvalidKey)?;
+    let signature = keypair.sign_message(req.message.as_bytes());
 
-    let message_bytes = req.message.as_bytes();
-    let signature = keypair.sign_message(message_bytes);
-    let signature_base64 = encode_base64(&signature.as_ref());
-
-    let response = SignMessageResponse {
-        signature: signature_base64,
+    Ok(Json(ApiResponse::success(SignMessageResponse {
+        signature: encode_base64(&signature.as_ref()),
         message: req.message,
         public_key: keypair.pubkey().to_string(),
-    };
-
-    Ok(Json(ApiResponse::success(response)))
+    })))
 }
 
 pub async fn verify_message(
     Json(req): Json<VerifyMessageRequest>,
 ) -> Result<Json<ApiResponse<VerifyMessageResponse>>, ApiError> {
-    let public_key = string_to_pubkey(&req.public_key)?;
-    let signature_bytes = decode_base64(&req.signature)?;
+    if req.message.is_empty() || req.signature.is_empty() || req.public_key.is_empty() {
+        return Err(ApiError::InvalidInput);
+    }
 
-    let signature = Signature::try_from(signature_bytes.as_slice())
-        .map_err(|e| ApiError::VerificationFailed(format!("Invalid signature format: {}", e)))?;
+    let pubkey = string_to_pubkey(&req.public_key)?;
+    
+    let is_valid = match decode_base64(&req.signature) {
+        Ok(bytes) => match Signature::try_from(bytes.as_slice()) {
+            Ok(sig) => sig.verify(&pubkey.to_bytes(), req.message.as_bytes()),
+            Err(_) => false,
+        },
+        Err(_) => false,
+    };
 
-    let message_bytes = req.message.as_bytes();
-    let is_valid = signature.verify(&public_key.to_bytes(), message_bytes);
-
-    let response = VerifyMessageResponse {
+    Ok(Json(ApiResponse::success(VerifyMessageResponse {
         is_valid,
         message: req.message,
         public_key: req.public_key,
-    };
-
-    Ok(Json(ApiResponse::success(response)))
+    })))
 }

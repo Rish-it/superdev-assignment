@@ -23,7 +23,7 @@ pub struct KeypairResponse {
 
 #[derive(Deserialize)]
 pub struct CreateTokenRequest {
-    #[serde(rename = "mintAuthority")]
+    #[serde(alias = "mintAuthority")]
     pub mint_authority: String,
     pub mint: String,
     pub decimals: u8,
@@ -46,6 +46,7 @@ pub struct CreateTokenResponse {
 #[derive(Deserialize)]
 pub struct SignMessageRequest {
     pub message: String,
+    #[serde(alias = "privateKey")]
     pub private_key: String,
 }
 
@@ -60,6 +61,7 @@ pub struct SignMessageResponse {
 pub struct VerifyMessageRequest {
     pub message: String,
     pub signature: String,
+    #[serde(alias = "publicKey")]
     pub public_key: String,
 }
 
@@ -69,3 +71,5 @@ pub struct VerifyMessageResponse {
     pub message: String,
     pub public_key: String,
 }
+
+
